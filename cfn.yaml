@@ -1,0 +1,412 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Create IAM User and store credentials in separate Secrets Manager secrets'
+
+Parameters:
+  CollectionName:
+    Type: String
+    Description: Name of the OpenSearch Serverless Collection
+    Default: collection
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID for OpenSearch Serverless VPC endpoint
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs for OpenSearch Serverless VPC endpoint
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: Security group IDs for OpenSearch Serverless VPC endpoint
+
+Resources:
+  IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt IAMUser.Arn
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket}/*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket}"
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # SEC: H2 — Bedrock access scoped to deployment region
+              # and specific model ARNs used by the application.
+              # Remove model ARNs not needed for your deployment.
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModelWithResponseStream
+                  - bedrock:InvokeModel
+                Condition:
+                  StringEquals:
+                    'aws:RequestedRegion':
+                      - !Ref 'AWS::Region'
+                Resource:
+                  # Inference profiles (account-scoped)
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-sonnet-4-20250514-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-lite-v1:0"
+                  # Foundation models
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-image-v1"
+
+        - PolicyName: OpenSearchAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # SEC: Scoped aoss:APIAccessAll to the specific collection (least privilege)
+              - Effect: Allow
+                Action:
+                  - aoss:APIAccessAll
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:aoss:${AWS::Region}:${AWS::AccountId}:collection/${AWS::StackName}-${CollectionName}"
+              - Effect: Allow
+                Action:
+                  - aoss:BatchGetCollection
+                  - aoss:ListCollections
+                # SEC: These list/describe actions require Resource: "*" per AWS docs
+                # https://docs.aws.amazon.com/opensearch-service/latest/developerguide/security-iam-serverless.html
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - aoss:UpdateCollection
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:aoss:${AWS::Region}:${AWS::AccountId}:collection/${AWS::StackName}-${CollectionName}"
+                  - !Sub "arn:${AWS::Partition}:aoss:${AWS::Region}:${AWS::AccountId}:collection/${AWS::StackName}-${CollectionName}/*"
+              - Effect: Allow
+                Action:
+                  - aoss:DashboardsAccessAll
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:aoss:${AWS::Region}:${AWS::AccountId}:dashboards/default"
+        # SEC: rekognition:DetectLabels requires Resource: "*" per AWS docs
+        # https://docs.aws.amazon.com/rekognition/latest/dg/security_iam_id-based-policy-examples.html
+        - PolicyName: RekognitionAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rekognition:DetectLabels
+                Resource: '*'
+        - PolicyName: CloudWatchLogsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                # SEC: H3 — Scoped to application-specific log group prefix
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/cv-mcp-server/*"
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/cv-mcp-server/*:log-stream:*"
+
+
+
+  # SEC H6 — This IAM user provides long-lived credentials for
+  # local development. For production, replace with an IAM role
+  # assumed via sts:AssumeRole or AWS IAM Identity Center (SSO).
+  IAMUser:
+    Type: 'AWS::IAM::User'
+    Properties:
+      UserName: !Sub '${AWS::StackName}-temporary-user'
+
+  UserRolePolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: !Sub '${AWS::StackName}-assume-role-policy'
+      Users:
+        - !Ref IAMUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: 'sts:AssumeRole'
+            Resource: !GetAtt IAMRole.Arn
+
+  IAMUserAccessKey:
+    Type: 'AWS::IAM::AccessKey'
+    Properties:
+      UserName: !Ref IAMUser
+
+  # SEC H7 — These secrets store credential export commands for
+  # local development convenience. For production, store only the
+  # role ARN and assume it at runtime instead of literal key values.
+  UnixCredentialsSecret:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Sub '${AWS::StackName}-unix-credentials'
+      Description: 'Unix/MacOS credentials export commands'
+      SecretString: !Sub
+        - |
+          # First set the IAM User credentials
+          export AWS_REGION=${AWS::Region}
+          export AWS_ACCESS_KEY_ID=${IAMUserAccessKey}
+          export AWS_SECRET_ACCESS_KEY=${IAMUserAccessKey.SecretAccessKey}
+          
+          # Assume the role and set new credentials
+          CREDENTIALS=$(aws sts assume-role --role-arn ${IAMRole.Arn} --role-session-name "stack-session" --output json)
+          export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | grep -o '"AccessKeyId": "[^"]*' | cut -d'"' -f4)
+          export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | grep -o '"SecretAccessKey": "[^"]*' | cut -d'"' -f4)
+          export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | grep -o '"SessionToken": "[^"]*' | cut -d'"' -f4)
+          
+          # Other environment variables
+          export BUCKET_NAME=${S3Bucket}
+          export OPENSEARCH_ENDPOINT=${OpenSearchEndpoint}
+        - OpenSearchEndpoint: !GetAtt OpenSearchCollection.CollectionEndpoint
+
+  WindowsCredentialsSecret:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Sub '${AWS::StackName}-windows-credentials'
+      Description: 'Windows credentials export commands'
+      SecretString: !Sub
+        - |
+          @echo off
+          set AWS_REGION=${AWS::Region}
+          set AWS_ACCESS_KEY_ID=${IAMUserAccessKey}
+          set AWS_SECRET_ACCESS_KEY=${IAMUserAccessKey.SecretAccessKey}
+          
+          REM Assume the role and set new credentials
+          for /f "tokens=* usebackq" %%a in (`aws sts assume-role --role-arn ${IAMRole.Arn} --role-session-name "stack-session" --output json`) do (
+            set CREDENTIALS=%%a
+          )
+          for /f "tokens=2 delims=:" %%a in ('echo %CREDENTIALS% ^| findstr "AccessKeyId"') do set AWS_ACCESS_KEY_ID=%%~a
+          set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID:"=%
+          for /f "tokens=2 delims=:" %%a in ('echo %CREDENTIALS% ^| findstr "SecretAccessKey"') do set AWS_SECRET_ACCESS_KEY=%%~a
+          set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY:"=%
+          for /f "tokens=2 delims=:" %%a in ('echo %CREDENTIALS% ^| findstr "SessionToken"') do set AWS_SESSION_TOKEN=%%~a
+          set AWS_SESSION_TOKEN=%AWS_SESSION_TOKEN:"=%
+          
+          set BUCKET_NAME=${S3Bucket}
+          set OPENSEARCH_ENDPOINT=${OpenSearchEndpoint}
+        - OpenSearchEndpoint: !GetAtt OpenSearchCollection.CollectionEndpoint
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      # SEC: M4 — Enable server access logging for audit trail
+      LoggingConfiguration:
+        DestinationBucketName: !Ref S3AccessLogsBucket
+        LogFilePrefix: "s3-access-logs/"
+      # SEC: L4 — Lifecycle policy for uploaded media data minimisation
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireUserUploads
+            Status: Enabled
+            Prefix: "mcp/"
+            ExpirationInDays: 30
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 7
+
+  # SEC: M4 — Dedicated bucket for S3 access logs
+  S3AccessLogsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireAccessLogs
+            Status: Enabled
+            ExpirationInDays: 90
+
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt S3Bucket.Arn
+              - !Sub '${S3Bucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+          - Sid: AllowAccess
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt IAMRole.Arn
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource:
+              - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket}/*"
+              - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket}"
+
+  OpenSearchCollection:
+    Type: AWS::OpenSearchServerless::Collection
+    DependsOn:
+      - OpenSearchEncryptionPolicy
+      - OpenSearchAccessPolicy
+    Properties:
+      Name: !Sub "${CollectionName}"
+      Description: "OpenSearch Serverless collection"
+      Type: VECTORSEARCH
+
+
+  OpenSearchAccessPolicy:
+    Type: AWS::OpenSearchServerless::AccessPolicy
+    Properties:
+      Name: !Sub ${CollectionName}-access-policy
+      Type: "data"
+      Description: "Access policy for OpenSearch Serverless collection"
+      Policy: !Sub |
+        [{
+          "Rules":[
+            {
+              "ResourceType":"collection",
+              "Resource":["collection/${CollectionName}"],
+              "Permission":[
+                "aoss:CreateCollectionItems",
+                "aoss:DeleteCollectionItems",
+                "aoss:UpdateCollectionItems",
+                "aoss:DescribeCollectionItems"
+              ]
+            },
+            {
+              "ResourceType":"index",
+              "Resource":["index/${CollectionName}/*"],
+              "Permission":[
+                "aoss:ReadDocument",
+                "aoss:WriteDocument",
+                "aoss:CreateIndex",
+                "aoss:DeleteIndex",
+                "aoss:UpdateIndex",
+                "aoss:DescribeIndex"
+              ]
+            }
+          ],
+          "Principal":["${IAMRole.Arn}"]
+        }]
+
+  # SEC: C3 — Restrict OpenSearch to VPC endpoint access only.
+  # If no VPC is available, set AllowFromPublic: true as interim
+  # and restrict via data access policy principals.
+  OpenSearchNetworkPolicy:
+    Type: AWS::OpenSearchServerless::SecurityPolicy
+    Properties:
+      Name: !Sub ${CollectionName}-network-policy
+      Type: "network"
+      Description: "Network policy for OpenSearch Serverless collection"
+      Policy: !Sub |
+        [{
+          "Rules":[
+            {
+              "ResourceType":"collection",
+              "Resource":[
+                "collection/${CollectionName}"
+              ]
+            },
+            {
+              "ResourceType":"dashboard",
+              "Resource":[
+                "collection/${CollectionName}"
+              ]
+            }
+          ],
+          "AllowFromPublic": false,
+          "SourceVPCEs": ["${OpenSearchVPCEndpoint}"]
+        }]
+
+  OpenSearchVPCEndpoint:
+    Type: AWS::OpenSearchServerless::VpcEndpoint
+    Properties:
+      Name: !Sub ${CollectionName}-vpce
+      VpcId: !Ref VPCId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds: !Ref SecurityGroupIds
+
+  OpenSearchEncryptionPolicy:
+    Type: AWS::OpenSearchServerless::SecurityPolicy
+    Properties:
+      Name: !Sub ${CollectionName}-encryption-policy
+      Type: "encryption"
+      Description: "Encryption policy for OpenSearch Serverless collection"
+      Policy: !Sub |
+        {
+          "Rules":[
+            {
+              "ResourceType":"collection",
+              "Resource":[
+                "collection/${CollectionName}"
+              ]
+            }
+          ],
+          "AWSOwnedKey":true
+        }
+# SEC L3 — No CloudTrail, GuardDuty, or billing alarms are
+# provisioned here. These are typically managed at the AWS
+# Organization level. For standalone deployments, add a
+# CloudTrail trail, GuardDuty detector, and CloudWatch alarms.
+
+Outputs:
+  UnixSecretsManagerARN:
+    Description: 'ARN of the Unix credentials secret'
+    Value: !Ref UnixCredentialsSecret
+
+  WindowsSecretsManagerARN:
+    Description: 'ARN of the Windows credentials secret'
+    Value: !Ref WindowsCredentialsSecret

@@ -1,0 +1,38 @@
+# Python
+*__pycache__*
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv*
+.venv
+
+# IDE
+.idea/
+.DS_Store
+.kiro
+
+# Environment and secrets
+.env
+
+# AWS / CDK
+.cdk.out/
+cdk.out/
+
+# Test artifacts
+*_test_*
+.pytest_cache
+pylint_results.txt
+
+# Data and reports
+.chembl*
+*.csv
+*.ipynb
+*Report.txt
+*reports/*
+csr_results.txt
+logs/
+
+# SAM model cache
+/tmp/sam_models/
+assets
