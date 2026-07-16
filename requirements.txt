@@ -28,7 +28,7 @@ opencv-python==4.10.0.84
 numpy==1.26.4
 strands-agents==0.1.2
 strands-agents-tools==0.1.1
-streamlit==1.45.1
+streamlit==1.54.0
 tqdm==4.67.1
 typing-extensions==4.13.2
 wikipedia==1.4.0
