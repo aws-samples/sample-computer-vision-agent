@@ -58,20 +58,26 @@ Resources:
                 Condition:
                   StringEquals:
                     'aws:RequestedRegion':
-                      - !Ref 'AWS::Region'
+                      - us-east-1
+                      - us-east-2
+                      - us-west-2
                 Resource:
                   # Inference profiles (account-scoped)
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-3-7-sonnet-20250219-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-sonnet-4-20250514-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-lite-v1:0"
-                  # Foundation models
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
-                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+                  # Foundation models (all allowed regions for cross-region routing)
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"
+                  - !Sub "arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0"
                   - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-image-v1"
 
