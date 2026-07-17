@@ -16,7 +16,7 @@ pydantic==2.11.4
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 pytrials==1.0.0
-Pillow==11.2.1
+Pillow==12.2.0
 rembg==2.0.67
 onnxruntime==1.15.1
 reportlab==4.4.1
