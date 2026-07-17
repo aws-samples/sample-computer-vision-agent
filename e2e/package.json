@@ -1,0 +1,17 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "description": "End-to-end tests for the Streamlit Computer Vision app",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "PWDEBUG=1 playwright test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT-0",
+  "devDependencies": {
+    "@playwright/test": "1.52.0"
+  }
+}
