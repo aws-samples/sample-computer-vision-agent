@@ -65,7 +65,7 @@ def media_input_section():
                 st.video(uploaded_file)
                 st.write(f"📹 Video: {uploaded_file.name}")
             else:
-                st.image(uploaded_file, caption=uploaded_file.name, use_container_width=True)
+                st.image(uploaded_file, caption=uploaded_file.name, width='stretch')
 
             # Generate unique filename using session ID
             file_name = f"{st.session_state.session_id}_{uploaded_file.name}"
@@ -171,20 +171,19 @@ with st.sidebar:
         "🖊️ Choose your foundation model for analysis",
         (
             "Claude 4 Sonnet",
-            "Claude 3.7 Sonnet",
             "Claude 3.5 Sonnet",
             "Claude 3.5 Haiku",
         ),
-        index=1,
+        index=0,
     )
 
-    # extended thinking for Claude 4 Sonnet and Claude 3.7 Sonnet
+    # extended thinking for Claude 4 Sonnet
     select_reasoning = st.checkbox(
-        "Reasoning (Claude 4 Sonnet and Claude 3.7 Sonnet)", value=False
+        "Reasoning (Claude 4 Sonnet)", value=False
     )
     reasoningMode = (
         "Enable"
-        if select_reasoning and modelName in ["Claude 4 Sonnet", "Claude 3.7 Sonnet"]
+        if select_reasoning and modelName in ["Claude 4 Sonnet"]
         else "Disable"
     )
 
@@ -398,7 +397,14 @@ if prompt := st.chat_input("Enter your message."):
     is_relevant_to_uploads = False
     if st.session_state.uploaded_images:
         # Look for keywords that suggest the user wants to work with uploaded files
-        upload_keywords = ["upload", "uploaded", "file", "my image", "my video", "this image", "this video"]
+        upload_keywords = [
+            "upload", "uploaded", "file", "my image", "my video",
+            "this image", "this video", "the image", "the video",
+            "that image", "that video", "image of", "video of",
+            "what is this", "what's this", "whats this",
+            "describe", "analyze", "detect", "segment",
+            "crop", "remove background", "label",
+        ]
 
         # Check if user mentions any uploaded filename
         for media in st.session_state.uploaded_images:

@@ -208,7 +208,7 @@ def is_base64_encoded(s: str) -> bool:
 async def generate_image_description_internal(
     bedrock_client,
     image_url: str,
-    model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0"
+    model_id: str = "us.anthropic.claude-sonnet-4-20250514-v1:0"
 ) -> str:
     """Generate image description using AWS Bedrock Claude model.
 
@@ -427,7 +427,7 @@ async def generate_image_embedding_internal(bedrock_client, image_url: str) -> L
 @mcp.tool(name='generate_image_description')
 async def generate_image_description_tool(
     image_url: str,
-    model_id: Optional[str] = "anthropic.claude-3-sonnet-20240229-v1:0",
+    model_id: Optional[str] = "us.anthropic.claude-sonnet-4-20250514-v1:0",
     region: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Generate a concise description of an image using AWS Bedrock Claude model.
@@ -443,8 +443,7 @@ async def generate_image_description_tool(
     # List of models to try in order
     models_to_try = [
         model_id,  # First try the requested model
-        "anthropic.claude-3-sonnet-20240229-v1:0",
-        "anthropic.claude-3-haiku-20240307-v1:0"
+        "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ]
 
     last_error = None
@@ -752,7 +751,7 @@ async def query_images_by_image_tool(
 async def bulk_ingest_images_tool(
     image_urls: List[str],
     index_name: str,
-    model_id: Optional[str] = "anthropic.claude-3-sonnet-20240229-v1:0",
+    model_id: Optional[str] = "us.anthropic.claude-sonnet-4-20250514-v1:0",
     region: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Bulk ingest multiple images into OpenSearch with generated descriptions and embeddings.

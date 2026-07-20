@@ -21,7 +21,7 @@ logger = Connections.logger
 
 def invoke_bedrock_model(  # pylint: disable=unused-argument
     prompt: Dict[str, Any],
-    model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0",
+    model_id: str = "us.anthropic.claude-sonnet-4-20250514-v1:0",
     max_tokens: int = 1000,
     temperature: float = 0.5,
 ) -> str:
